@@ -43,14 +43,6 @@ impl<T> Default for ListNodeRc<T> {
 }
 
 impl<T> ListNodeRc<T> {
-    // fn head(&self) -> Link<T> {
-    //     self.head.as_ref().cloned()
-    // }
-
-    // fn head_mut(&mut self) -> &mut Link<T> {
-    //     &mut self.head
-    // }
-
     fn is_empty(&self) -> bool {
         self.head.is_none()
     }
@@ -79,24 +71,6 @@ impl<T> ListNodeRc<T> {
         self.iter_nodes().nth(position).map(|node| node.data.clone())
     }
 
-    // fn into_iter(self) -> IntoIter<T> {
-    //     IntoIter(self)
-    // }
-
-    // fn iter(&self) -> Iter<'_, T> {
-    //     Iter {
-    //         next: self.head.as_ref().map(Rc::clone),
-    //         _marker: PhantomData,
-    //     }
-    // }
-
-    // fn iter_mut(&mut self) -> IterMut<'_, T> {
-    //     IterMut {
-    //         next: self.head.as_ref().map(Rc::clone),
-    //         _marker: PhantomData,
-    //     }
-    // }
-
     fn new() -> Self {
         Self::default()
     }
@@ -116,29 +90,29 @@ impl<T> ListNodeRc<T> {
         }
     }
 
-//     fn push_head(&mut self, data: T) {
-//         self.check_invariants();
-
-//         let new_head = Rc::new(NodeRc {
-//             data,
-//             next: RefCell::new(self.head.take()),
-//         });
-
-//         self.head = Some(new_head);
-
-//         self.check_invariants();
-//     }
-
-    fn join(self, other: Self) -> Self {
+    fn push_head(&mut self, data: T) {
         self.check_invariants();
+
+        let new_head = Rc::new(NodeRc {
+            data,
+            next: RefCell::new(self.head.take()),
+        });
+
+        self.head = Some(new_head);
+
+        self.check_invariants();
+    }
+
+    fn join(self, mut other: Self) -> Self {
+        self.check_invariants();
+        other.check_invariants();
 
         if other.is_empty() {
             return self;
         }
 
         if self.is_empty() {
-            self.head = other.head.take();
-            return;
+            return other;
         }
 
         if let Some(last_node) = self.iter_nodes().last() {
@@ -146,117 +120,33 @@ impl<T> ListNodeRc<T> {
         }
 
         self.check_invariants();
+        self
     }
+//TODO
+    // fn divide_at(&mut self, position: usize) -> Option<(Self, Self)> {
+    //     self.check_invariants();
+    //     if self.is_empty() {
+    //         return None;
+    //     }
 
-//     fn divide_at(&mut self, position: usize) -> Option<(Self, Self)> {
-//         self.check_invariants();
-//         if self.is_empty() {
-//             return None;
-//         }
+    //     if position == 0 {
+    //         return Some((Self::new(), std::mem::take(self)));
+    //     }
 
-//         if position == 0 {
-//             return Some((Self::new(), std::mem::take(self)));
-//         }
+    //     let prev_node = self.get_node_at(position - 1)?;
 
-//         let prev_node = self.get_node_at(position - 1)?;
+    //     let head2 = prev_node.next_node();
+    //     prev_node.set_next(None);
 
-//         let head2 = prev_node.next_node();
-//         prev_node.set_next(None);
+    //     let list1 = ListNodeRc {
+    //         head: self.head.take(),
+    //     };
 
-//         let list1 = ListNodeRc {
-//             head: self.head.take(),
-//         };
+    //     let list2 = ListNodeRc { head: head2 };
 
-//         let list2 = ListNodeRc { head: head2 };
-
-//         self.check_invariants();
-//         Some((list1, list2))
-//     }
-
-//     fn append_at(&mut self, position: usize, data: T) {
-//         self.check_invariants();
-
-//         if position == 0 {
-//             self.push_head(data);
-//             return;
-//         }
-
-//         let prev_node = self
-//             .get_node_at(position - 1).ok_or(())?; //TODO ?
-
-//         let new_node = Rc::new(NodeRc {
-//             data,
-//             next: RefCell::new(prev_node.next_node()),
-//         });
-
-//         *prev_node.next.borrow_mut() = Some(new_node);
-
-//         self.check_invariants();
-//     }
-
-//     fn remove_at(&mut self, position: usize) {
-//         self.check_invariants();
-
-//         if self.is_empty() {
-//             return;
-//         }
-
-//         let prev_node = self.get_node_at(position - 1).unwrap(); //TODO ?
-
-//         let node_to_remove = prev_node.next_node();
-
-//         if let Some(node) = node_to_remove {
-//             let next_node = node.next_node();
-//             prev_node.set_next(next_node);
-//         }
-
-//         self.check_invariants();
-//     }
-
-//     fn make_cycle_at(&mut self, position: usize) {
-//         self.check_invariants();
-//         if self.is_empty() {
-//             return;
-//         }
-
-//         let target_node = self.get_node_at(position - 1).unwrap(); //TODO ?
-
-//         let last_node = self.iter_nodes().last().unwrap(); //TODO ?
-
-//         last_node.set_next(Some(Rc::clone(&target_node)));
-
-//         self.check_invariants();
-//     }
-
-//     fn has_cycle(&self) -> bool {
-//         self.check_invariants();
-
-//         if self.is_empty() {
-//             return false;
-//         }
-
-//         let mut slow_iter = self.iter_nodes();
-//         let mut fast_iter = self.iter_nodes();
-
-//         let mut slow = slow_iter.next();
-//         let mut fast = fast_iter.next();
-
-//         while slow.is_some() && fast.is_some() {
-//             slow = slow_iter.next();
-
-//             fast_iter.next();
-//             fast = fast_iter.next();
-
-//             if let (Some(s), Some(f)) = (&slow, &fast) {
-//                 if Rc::ptr_eq(s, f) {
-//                     return true;
-//                 }
-//             }
-//         }
-
-//         self.check_invariants();
-//         false
-//     }
+    //     self.check_invariants();
+    //     Some((list1, list2))
+    // }
 
     fn iter_nodes(&self) -> NodeIter<T> {
         NodeIter {
@@ -284,156 +174,45 @@ impl<T> Iterator for NodeIter<T> {
     }
 }
 
-// impl<T: Clone> Iterator for IntoIter<T> {
-//     type Item = T;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         if self.0.is_empty() {
-//             return None;
-//         }
-
-//         let current_head = self.0.head.take().unwrap();
-
-//         let current_ref = current_head.borrow();
-//         let data = current_ref.data.clone();
-//         let next_node = current_ref.next.as_ref().map(Rc::clone);
-
-//         self.0.head = next_node;
-
-//         if self.0.is_empty() {
-//             self.0.tail = None;
-//         }
-
-//         Some(data)
-//     }
-// }
-
-// impl<'a, T> Iterator for Iter<'a, T> {
-//     type Item = &'a T;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.next.take().map(|node| {
-//             // let node_ref = node.borrow();
-//             // self.next = node_ref.next.as_ref().map(Rc::clone);
-
-//             // unsafe { &*(&node_ref.data as *const T) } /////////////
-//             self.next = node.next.as_ref().map(Rc::clone);
-//             &node.data
-//         })
-//     }
-// }
-
-// impl<'a, T> Iterator for IterMut<'a, T> {
-//     type Item = &'a mut T;
-
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.next.take().map(|node| {
-//             let mut node_ref = node.borrow_mut();
-//             self.next = node_ref.next.as_ref().map(Rc::clone);
-
-//             unsafe { &mut *(&mut node_ref.data as *mut T) }
-//         })
-//     }
-// }
-
-// impl<T> Drop for ListNodeRc<T> {
-//     fn drop(&mut self) {
-//         let mut current = self.head.take();
-//         while let Some(node) = current {
-//             if let Ok(mut node_inner) = Rc::try_unwrap(node) {
-//                 current = node_inner.get_mut().next.take();
-//             } else {
-//                 break;
-//             }
-//         }
-//         self.tail.take();
-//     }
-// }
-
 fn main() {
-    // let mut list = ListNodeRc::new();
+    let mut list = ListNodeRc::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+    let collected1: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected1, vec![3, 2, 1]);
 
-    //     list.push_back(1);
-    //     list.push_back(2);
-    //     list.push_back(3);
-    //     println!("after push_back: {:?}\n", list);
-
-    //     list.pop_back();
-    //     list.pop_back();
-    //     println!("after pop_back: {:?}\n", list);
-    //     // //////////////////////////////////////////////////////////////////
-    //     let mut list1 = ListNodeRc::new();
-    //     list1.push_back(1);
-
-    //     let mut list2 = ListNodeRc::new();
-    //     list2.push_back(2);
-    //     list2.push_back(3);
-
-    //     list1.join(&mut list2);
-
-    //     println!("After append: {:?}\n", list1);
-    //     println!("List 2 after append: {:?}\n", list2);
-    //     //////////////////////////////////////////////////////////////////
-    //     let (first, second) = list1.divide_at(1).unwrap();
-
-    //     println!("After division\n");
-    //     println!("First part: {:?}\n", first);
-    //     println!("Second part: {:?}\n", second);
-    //     //////////////////////////////////////////////////////////////////
-    //     let mut list = ListNodeRc::new();
-
-    //     list.push_back(1);
-    //     list.push_back(2);
-    //     list.push_back(3);
-    //     list.append_at(1, 10);
-    //     println!("After appending element at position: {:?}\n", list);
-    //     //////////////////////////////////////////////////////////////////
-    //     let mut list = ListNodeRc::new();
-
-    //     list.push_back(1);
-    //     list.push_back(2);
-    //     list.push_back(3);
-    //     list.remove_at(1);
-    //     println!("After removing element at position: {:?}\n", list);
-    //     //////////////////////////////////////////////////////////////////
-    //     let mut list = ListNodeRc::new();
-    //     list.push_back(1);
-    //     list.push_back(2);
-    //     list.push_back(3);
-    //     println!("Iter\n");
-
-    //     let mut iter = list.into_iter();
-    //     assert_eq!(iter.next(), Some(1));
-    //     assert_eq!(iter.next(), Some(2));
-    //     assert_eq!(iter.next(), Some(3));
-    //     assert_eq!(iter.next(), None);
+    list.pop_head();
+    list.pop_head();
+    let collected2: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected2, vec![1]);
 }
 
-// // проверка отсутствия переполнения стека
-// fn create_and_drop_large_list() {
-//     let mut list = ListNodeRc::new();
-//     for i in 0..1_000_000 {
-//         list.push_back(i);
-//     }
-// }
+// проверка отсутствия переполнения стека
+fn create_and_drop_large_list() {
+    let mut list = ListNodeRc::new();
+    for i in 0..1_000_000 {
+        list.push_head(i);
+    }
+}
 
-// #[test]
-// fn test_large_list_drop() {
-//     create_and_drop_large_list();
-// }
+#[test]
+fn test_large_list_drop() {
+    create_and_drop_large_list();
+}
 
-// #[test]
-// fn test_make_cycle_and_detect() {
-//     let mut list = ListNodeRc::new();
-//     list.push_back(1);
-//     list.push_back(2);
-//     list.push_back(3);
-//     list.push_back(4);
-//     list.push_back(5);
+#[test]
+fn test_join() {
+    let mut a = ListNodeRc::new();
+    a.push_head(1);
+    a.push_head(2);
 
-//     assert!(!list.has_cycle());
+    let mut b = ListNodeRc::new();
+    b.push_head(3);
+    b.push_head(4);
 
-//     list.make_cycle_at(2);
+    let joined = a.join(b);
 
-//     assert!(list.has_cycle());
-// }
+    let values: Vec<_> = joined.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(values, vec![2, 1, 4, 3]);
+}
