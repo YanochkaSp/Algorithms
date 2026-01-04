@@ -65,10 +65,8 @@ impl<T> ListNodeRc<T> {
         }
     }
 
-    fn get_node_at(&self, position: usize) -> Option<T>
-    where T: Clone
-    {
-        self.iter_nodes().nth(position).map(|node| node.data.clone())
+    fn get_node_at(&self, position: usize) -> Option<Rc<NodeRc<T>>> {
+        self.iter_nodes().nth(position)
     }
 
     fn new() -> Self {
@@ -122,31 +120,31 @@ impl<T> ListNodeRc<T> {
         self.check_invariants();
         self
     }
-//TODO
-    // fn divide_at(&mut self, position: usize) -> Option<(Self, Self)> {
-    //     self.check_invariants();
-    //     if self.is_empty() {
-    //         return None;
-    //     }
 
-    //     if position == 0 {
-    //         return Some((Self::new(), std::mem::take(self)));
-    //     }
+    fn divide_at(&mut self, position: usize) -> Option<(Self, Self)> {
+        self.check_invariants();
+        if self.is_empty() {
+            return None;
+        }
 
-    //     let prev_node = self.get_node_at(position - 1)?;
+        if position == 0 {
+            return Some((Self::new(), std::mem::take(self)));
+        }
 
-    //     let head2 = prev_node.next_node();
-    //     prev_node.set_next(None);
+        let prev_node = self.get_node_at(position - 1)?;
 
-    //     let list1 = ListNodeRc {
-    //         head: self.head.take(),
-    //     };
+        let head2 = prev_node.next_node();
+        prev_node.set_next(None);
 
-    //     let list2 = ListNodeRc { head: head2 };
+        let list1 = ListNodeRc {
+            head: self.head.take(),
+        };
 
-    //     self.check_invariants();
-    //     Some((list1, list2))
-    // }
+        let list2 = ListNodeRc { head: head2 };
+
+        self.check_invariants();
+        Some((list1, list2))
+    }
 
     fn iter_nodes(&self) -> NodeIter<T> {
         NodeIter {
@@ -215,4 +213,20 @@ fn test_join() {
 
     let values: Vec<_> = joined.iter_nodes().map(|node| node.data).collect();
     assert_eq!(values, vec![2, 1, 4, 3]);
+}
+
+#[test]
+fn test_divide_at() {
+    let mut list = ListNodeRc::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+    list.push_head(4);
+    list.push_head(5);
+    let (a, b) = list.divide_at(3).expect("divide_at failed");
+    let left: Vec<_> = a.iter_nodes().map(|node| node.data).collect();
+    let right: Vec<_> = b.iter_nodes().map(|node| node.data).collect();
+
+    assert_eq!(left, vec![5, 4, 3]);
+    assert_eq!(right, vec![2, 1]);
 }
