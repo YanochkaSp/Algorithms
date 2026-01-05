@@ -146,6 +146,86 @@ impl<T> ListNodeRc<T> {
         Some((list1, list2))
     }
 
+    fn append_at(&mut self, position: usize, data: T) {
+        self.check_invariants();
+
+        if position == 0 {
+            self.push_head(data);
+            return;
+        }
+
+        let prev_node = self
+            .get_node_at(position - 1).expect("append_at failed");
+
+        let new_node = Rc::new(NodeRc {
+            data,
+            next: RefCell::new(prev_node.next_node()),
+        });
+
+        *prev_node.next.borrow_mut() = Some(new_node);
+
+        self.check_invariants();
+    }
+
+    fn remove_at(&mut self, position: usize) {
+        self.check_invariants();
+
+        if self.is_empty() {
+            return;
+        }
+
+        let prev_node = self.get_node_at(position - 1).expect("remove_at failed");
+
+        let node_to_remove = prev_node.next_node();
+
+        if let Some(node) = node_to_remove {
+            let next_node = node.next_node();
+            prev_node.set_next(next_node);
+        }
+
+        self.check_invariants();
+    }
+
+    fn make_cycle_at(&mut self, position: usize) {
+        self.check_invariants();
+        if self.is_empty() {
+            return;
+        }
+
+        let target_node = self.get_node_at(position - 1).expect("make_cycle_at failed");
+
+        let last_node = self.iter_nodes().last().expect("make_cycle_at failed");
+
+        last_node.set_next(Some(Rc::clone(&target_node)));
+    }
+
+     fn has_cycle(&self) -> bool {
+        if self.is_empty() {
+            return false;
+        }
+
+        let mut slow_iter = self.iter_nodes();
+        let mut fast_iter = self.iter_nodes();
+
+        let mut slow = slow_iter.next();
+        let mut fast = fast_iter.next();
+
+        while slow.is_some() && fast.is_some() {
+            slow = slow_iter.next();
+
+            fast_iter.next();
+            fast = fast_iter.next();
+
+            if let (Some(s), Some(f)) = (&slow, &fast) {
+                if Rc::ptr_eq(s, f) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     fn iter_nodes(&self) -> NodeIter<T> {
         NodeIter {
             next: self.head.as_ref().map(Rc::clone),
@@ -229,4 +309,41 @@ fn test_divide_at() {
 
     assert_eq!(left, vec![5, 4, 3]);
     assert_eq!(right, vec![2, 1]);
+}
+
+#[test]
+fn test_append_at() {
+    let mut list = ListNodeRc::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+
+    list.append_at(1, 9);
+    let collected: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected, vec![3, 9, 2, 1]);
+}
+
+#[test]
+fn test_remove_at() {
+    let mut list = ListNodeRc::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+    list.push_head(4);
+
+    list.remove_at(3);
+    let collected: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected, vec![4, 3, 2]);
+}
+
+#[test]
+fn test_make_cycle_at() {
+    let mut list = ListNodeRc::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+    list.push_head(4);
+
+    list.make_cycle_at(1);
+    assert!(list.has_cycle());
 }
