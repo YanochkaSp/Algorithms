@@ -1,8 +1,8 @@
-use std::{cell::RefCell, collections::HashSet, fmt::Debug, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, marker::PhantomData, rc::Rc};
 
 type Link<T> = Option<Rc<NodeRc<T>>>;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 struct NodeRc<T> {
     data: T,
     next: RefCell<Link<T>>,
@@ -19,7 +19,6 @@ impl<T> NodeRc<T> {
     }
 }
 
-#[derive(Debug)]
 struct ListNodeRc<T> {
     head: Link<T>,
 }
@@ -67,6 +66,24 @@ impl<T> ListNodeRc<T> {
 
     fn get_node_at(&self, position: usize) -> Option<Rc<NodeRc<T>>> {
         self.iter_nodes().nth(position)
+    }
+
+    fn into_iter(self) -> IntoIter<T> {
+        IntoIter(self)
+    }
+
+    fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            next: self.head.as_ref().map(Rc::clone),
+            _marker: PhantomData,
+        }
+    }
+
+    fn iter_mut(&mut self) -> IterMut<'_, T> {
+        IterMut {
+            next: self.head.as_ref().map(Rc::clone),
+            _marker: PhantomData,
+        }
     }
 
     fn new() -> Self {
@@ -199,7 +216,7 @@ impl<T> ListNodeRc<T> {
         last_node.set_next(Some(Rc::clone(&target_node)));
     }
 
-     fn has_cycle(&self) -> bool {
+    fn has_cycle(&self) -> bool {
         if self.is_empty() {
             return false;
         }
@@ -249,6 +266,19 @@ impl<T> Iterator for NodeIter<T> {
             self.next = next;
             node
         })
+    }
+}
+
+impl<T> Drop for ListNodeRc<T> {
+    fn drop(&mut self) {
+        let mut current = self.head.take();
+        while let Some(node) = current {
+            if let Ok(node_inner) = Rc::try_unwrap(node) {
+                current = node_inner.next.take();
+            } else {
+                break;
+            }
+        }
     }
 }
 
