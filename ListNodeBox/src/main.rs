@@ -1,203 +1,72 @@
-// use std::marker::PhantomData;
+type Link<T> = Option<Box<NodeBox<T>>>;
 
-// struct NodeBox<T> {
-//     data: T,
-//     next: Option<Box<NodeBox<T>>>
-// }
+struct NodeBox<T> {
+    data: T,
+    next: Link<T>,
+}
 
-// struct ListNodeBox<T> {
-//     len: usize,
-//     head: Option<Box<NodeBox<T>>>,
-//     // tail: Option<Box<NodeBox<T>>> нельзя
-// }
+struct ListNodeBox<T> {
+    head: Link<T>,
+}
 
-// struct IntoIter<T>(ListNodeBox<T>);
+impl<T> Default for ListNodeBox<T> {
+    fn default() -> Self {
+        Self {
+            head: Default::default(),
+        }
+    }
+}
 
-// struct Iter<'a, T> {
-//     next: Option<Box<NodeBox<T>>>,
-//     _marker: PhantomData<&'a T>
-// }
+impl<T> ListNodeBox<T> {
+    fn new() -> Self {
+        Self::default()
+    }
 
-// struct IterMut<'a, T> {
-//     next: Option<Box<NodeBox<T>>>,
-//     _marker: PhantomData<&'a mut  T>
-// }
+    fn push_head(&mut self, data: T) {
+        self.head = Some(Box::new(NodeBox {
+            data,
+            next: self.head.take(),
+        }))
+    }
 
-// impl<T> ListNodeBox<T> {
-//     fn into_iter(self) -> IntoIter<T> {
-//         IntoIter(self)
-//     }
+    fn pop_head(&mut self) -> Option<T> {
+        self.head.take().map(|node| {
+            self.head = node.next;
+            node.data
+        })
+    }
 
-//     fn new() -> Self {
-//         Self { len: 0, head: None }
-//     }
+    fn iter_nodes(&self) -> NodeIter<T> {
+        NodeIter {
+            next: self.head.as_deref(),
+        }
+    }
+}
 
-//     fn push_back(&mut self, data: T) {
-//         let new_node = NodeBox {
-//             data,
-//             next: None,
-//         };
+struct NodeIter<'a, T> {
+    next: Option<&'a NodeBox<T>>,
+}
 
-//         if let Some(ref mut head) = self.head {
-//             let mut current = head;
-//             while current.next.is_some() {
-//                 current = current.next.as_mut().unwrap();
-//             }
-//             current.next = Some(Box::new(new_node));
-//         } else {
-//             self.head = Some(Box::new(new_node));
-//         }
+impl<'a, T> Iterator for NodeIter<'a, T> {
+    type Item = &'a NodeBox<T>;
 
-//         self.len += 1;
-//     }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|node| {
+            self.next = node.next.as_deref();
+            node
+        })
+    }
+}
+fn main() {
+    let mut list = ListNodeBox::new();
+    list.push_head(1);
+    list.push_head(2);
+    list.push_head(3);
+    let collected1: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected1, vec![3, 2, 1]);
 
-//     fn pop_back(&mut self) {
-//         if self.len == 0 {
-//             return;
-//         }
-
-//         if self.len == 1 {
-//             self.head = None;
-//             self.len = 0;
-//             return;
-//         }
-
-//         let mut current = self.head.as_mut().unwrap();
-//         for _ in 0..self.len-2 {
-//             current = current.next.as_mut().unwrap();
-//         }
-
-//         current.next = None;
-//         self.len -= 1;
-//     }
-
-//     fn join(&mut self, other: &mut Self) {
-//         if other.len == 0 {
-//             return;
-//         }
-
-//         if self.len == 0 {
-//             self.len = other.len;
-//             self.head = other.head.take();
-//             other.len = 0;
-//             return;
-//         }
-
-//         let mut current = self.head.as_mut().unwrap();
-//         while current.next.is_some() {
-//             current = current.next.as_mut().unwrap();
-//         }
-//         current.next = other.head.take();
-//         self.len += other.len;
-//         other.len = 0;
-//     }
-
-//     fn divide_at(&mut self, position: usize) -> Option<(Self, Self)>{
-//         if self.len == 0{
-//             return None;
-//         } 
-        
-//         if position == 0 {
-//             let second_list = Self {
-//                 len: self.len,
-//                 head: self.head.take(),
-//             };
-//             self.len = 0;
-//             return Some((Self::new(), second_list));
-//         }
-
-//         if position >= self.len - 1 {
-//             let first_list = Self { len: self
-//                 .len, head: self.head.take() };
-//             self.len = 0;
-//             return Some((first_list, Self::new()));
-//         }
-
-//         let mut current = self.head.as_mut().unwrap();
-//         for _ in 0..(position-1) {
-//             current = current.next.as_mut().unwrap();
-//         }
-//         let head2 = current.next.take();/////////////////////////////////
-//         let list1 = Self {
-//             len: position,
-//             head: self.head.take(),
-//         };
-//         let list2 = Self {
-//             len: self.len - position,
-//             head: head2,
-//         };
-
-//         self.len = 0;
-//         Some((list1, list2))
-//     }
-
-//     fn append_at(&mut self, position: usize, data: T) {
-//         let mut current = self.head.as_mut().unwrap();
-//         for _ in 0..(position-1) {
-//             current = current.next.as_mut().unwrap();
-//         }
-
-//         let new_node = NodeBox {
-//             data,
-//             next: current.next.take(),
-//         };
-//         current.next = Some(Box::new(new_node));
-//         self.len += 1;
-//     }
-
-//     fn remove_at(&mut self, position: usize) {
-//         let mut current = self.head.as_mut().unwrap();
-//         for _ in 0..(position-1) {
-//             current = current.next.as_mut().unwrap();
-//         }
-//         let node_to_remove = current.next.take().unwrap();
-//         current.next = node_to_remove.next;
-//         self.len -= 1;
-//     }
-
-//     // fn make_cycle_at(&mut self, position: usize) {
-//     //     if self.len == 0 || position >= self.len {
-//     //         return;
-//     //     }
-//     //     let mut current = self.head.as_mut().unwrap();
-//     //     for _ in 0..(position-1) {
-//     //         current = current.next.as_mut().unwrap();
-//     //     }
-//     // }
-
-//     fn has_cycle(&self) -> bool {
-//         if self.len == 0 {
-//             return false;
-//         }
-
-//         let mut slow = self.head.as_ref();
-//         let mut fast = self.head.as_ref();
-
-//         while slow.is_some() && fast.is_some() {
-//             slow = slow.and_then(|node| node.next.as_ref());
-
-//             fast = fast.and_then(|node| node.next.as_ref());
-//             fast = fast.and_then(|node| node.next.as_ref());
-
-//             if let (Some(s), Some(f)) = (slow, fast) {
-//                 if std::ptr::eq(s, f) {
-//                     return true;
-//                 }
-//             }
-//         }
-//         false
-//     }
-// }
-
-// impl<T> Drop for ListNodeBox<T>{
-//     fn drop(&mut self) {
-//         let mut current = self.head.take();
-//         while let Some(mut node) = current {
-//             current = node.next.take();
-//         }
-//         self.len = 0;
-//     }
-// }
-
-// fn main() {
-// }
+    list.pop_head();
+    list.pop_head();
+    let collected2: Vec<_> = list.iter_nodes().map(|node| node.data).collect();
+    assert_eq!(collected2, vec![1]);
+}
