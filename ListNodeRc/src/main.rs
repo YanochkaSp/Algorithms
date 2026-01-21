@@ -2,7 +2,6 @@ use std::{cell::RefCell, collections::HashSet, marker::PhantomData, rc::Rc};
 
 type Link<T> = Option<Rc<NodeRc<T>>>;
 
-#[derive(PartialEq)]
 struct NodeRc<T> {
     data: T,
     next: RefCell<Link<T>>,
@@ -33,6 +32,36 @@ struct Iter<'a, T> {
 struct IterMut<'a, T> {
     next: Link<T>,
     _marker: PhantomData<&'a mut T>,
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let head = self.0.head.take()?;
+        match Rc::try_unwrap(head) {
+            Ok(node) => {
+                self.0.head = node.next.into_inner();
+                Some(node.data)
+            }
+            Err(_) => panic!("Multiple references to node in IntoIter"),
+        }
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|node| {
+            let next = {
+                let next_ref = node.next.borrow();
+                next_ref.as_ref().map(Rc::clone)
+            };
+            self.next = next;
+            &node.data
+        })
+    }
 }
 
 impl<T> Default for ListNodeRc<T> {
@@ -171,8 +200,7 @@ impl<T> ListNodeRc<T> {
             return;
         }
 
-        let prev_node = self
-            .get_node_at(position - 1).expect("append_at failed");
+        let prev_node = self.get_node_at(position - 1).expect("append_at failed");
 
         let new_node = Rc::new(NodeRc {
             data,
@@ -209,7 +237,9 @@ impl<T> ListNodeRc<T> {
             return;
         }
 
-        let target_node = self.get_node_at(position - 1).expect("make_cycle_at failed");
+        let target_node = self
+            .get_node_at(position - 1)
+            .expect("make_cycle_at failed");
 
         let last_node = self.iter_nodes().last().expect("make_cycle_at failed");
 
