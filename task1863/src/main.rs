@@ -43,7 +43,7 @@ pub fn subset_xor_sum(nums: Vec<i32>) -> i32 {
         source: &nums,
         ind: 0,
     };
-    iter.map(|num| num.iter().sum()
+    iter.map(|subset| subset.iter().sum::<i32>()).sum()
 }
 
 

@@ -10,8 +10,5 @@ pub fn check_string(s: String) -> bool {
             _ => (la, fb),
         }
     });
-    match (la, fb) {
-        (a, b) => a < b, 
-        _ => true,
-    }
+    la < fb
 }

@@ -1,10 +1,12 @@
-use std::{cell::RefCell, collections::HashSet, marker::PhantomData, rc::Rc};
+#![allow(unused)]
+
+use std::{cell::RefCell, rc::Rc};
 
 type Link<T> = Option<Rc<NodeRc<T>>>;
 
 struct NodeRc<T> {
     data: T,
-    next: RefCell<Link<T>>,
+    next: RefCell<Link<T>>, //Cell
 }
 
 impl<T> NodeRc<T> {
@@ -22,19 +24,9 @@ struct ListNodeRc<T> {
     head: Link<T>,
 }
 
-struct IntoIter<T>(ListNodeRc<T>);
+struct IntoIterRc<T>(ListNodeRc<T>);
 
-struct Iter<'a, T> {
-    next: Link<T>,
-    _marker: PhantomData<&'a T>,
-}
-
-struct IterMut<'a, T> {
-    next: Link<T>,
-    _marker: PhantomData<&'a mut T>,
-}
-
-impl<T> Iterator for IntoIter<T> {
+impl<T> Iterator for IntoIterRc<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -44,24 +36,30 @@ impl<T> Iterator for IntoIter<T> {
                 self.0.head = node.next.into_inner();
                 Some(node.data)
             }
-            Err(_) => panic!("Multiple references to node in IntoIter"),
+            Err(_) => panic!("Multiple references to node in IntoIterRc"),
         }
     }
 }
 
-impl<'a, T> Iterator for Iter<'a, T> {
-    type Item = &'a T;
+struct IterRc<T> {
+    next: Option<Rc<NodeRc<T>>>,
+}
+
+impl<T> Iterator for IterRc<T> {
+    type Item = Rc<NodeRc<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next.take().map(|node| {
-            let next = {
-                let next_ref = node.next.borrow();
-                next_ref.as_ref().map(Rc::clone)
-            };
+            let next = node.next.borrow().clone();
             self.next = next;
-            &node.data
+            node
         })
     }
+}
+
+// Iterator for IterMutRc реализовать нельзя, т.к. список построен на Rc, а Rc подразумевает совместное владение (&mut должен быть только 1)
+struct IterMutRc<T> {
+    next: Link<T>,
 }
 
 impl<T> Default for ListNodeRc<T> {
@@ -76,20 +74,8 @@ impl<T> ListNodeRc<T> {
     }
 
     fn check_invariants(&self) {
-        let mut visited = HashSet::new();
-        let mut current = self.head.clone();
-
-        while let Some(node_rc) = current {
-            let node_ptr = Rc::as_ptr(&node_rc);
-            if visited.contains(&node_ptr) {
-                panic!("Cycle detected in linked list!");
-            }
-            visited.insert(node_ptr);
-
-            let node = &node_rc;
-
-            let next_borrow = node.next.borrow();
-            current = next_borrow.clone();
+        if self.has_cycle() {
+            panic!("Cycle detected in linked list!");
         }
     }
 
@@ -97,21 +83,19 @@ impl<T> ListNodeRc<T> {
         self.iter_nodes().nth(position)
     }
 
-    fn into_iter(self) -> IntoIter<T> {
-        IntoIter(self)
+    fn into_iter(self) -> IntoIterRc<T> {
+        IntoIterRc(self)
     }
 
-    fn iter(&self) -> Iter<'_, T> {
-        Iter {
+    fn iter(&self) -> IterRc<T> {
+        IterRc {
             next: self.head.as_ref().map(Rc::clone),
-            _marker: PhantomData,
         }
     }
 
-    fn iter_mut(&mut self) -> IterMut<'_, T> {
-        IterMut {
+    fn iter_mut(&mut self) -> IterMutRc<T> {
+        IterMutRc {
             next: self.head.as_ref().map(Rc::clone),
-            _marker: PhantomData,
         }
     }
 
@@ -329,8 +313,14 @@ fn main() {
 // проверка отсутствия переполнения стека
 fn create_and_drop_large_list() {
     let mut list = ListNodeRc::new();
-    for i in 0..1_000_000 {
-        list.push_head(i);
+    list.extend(0..10_000);
+}
+
+impl<T> Extend<T> for ListNodeRc<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.push_head(item);
+        }
     }
 }
 
@@ -407,3 +397,19 @@ fn test_make_cycle_at() {
     list.make_cycle_at(1);
     assert!(list.has_cycle());
 }
+
+// struct Ref<'a, T> {
+//     data: *mut T,
+//     _marker: PhantomData<&'a T>,
+// }
+
+// extern "C" {
+//     fn make_ref(x: *mut NodeRc<u32>) -> *mut u32;
+// }
+
+// fn make_safe_ref(x: &'_ NodeRc<u32>) -> Ref<'_, u32> {
+//     let data = unsafe {
+//         make_ref((x as *const NodeRc<u32>).cast_mut())
+//     };
+//     Ref { data, _marker: PhantomData }
+// }

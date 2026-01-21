@@ -7,10 +7,10 @@ fn main() {
 }
 
 pub fn fair_candy_swap(arr1: Vec<i32>, arr2: Vec<i32>) -> Vec<i32> {
-    let sumA: i32 = arr1.iter().sum();
-    let sumB : i32= arr1.iter().sum();
+    let sum_a: i32 = arr1.iter().sum();
+    let sum_b : i32= arr1.iter().sum();
     
-    let diff = (sumA - sumB) / 2;
+    let diff = (sum_a - sum_b) / 2;
 
     let bob_set: HashSet<i32> = arr2.into_iter().collect();
     for candy in arr1 {

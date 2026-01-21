@@ -1,7 +1,6 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 fn main() {
-    // let words = vec!["aba".to_string(),"aabb".to_string(),"abcd".to_string(),"bac".to_string(),"aabc".to_string()];
     let words = vec![
         "bbceaeeeabbdeaeaabac".to_string(),
         "bbbcaecddbcdababbcbc".to_string(),
